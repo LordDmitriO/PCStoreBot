@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy import BigInteger, ForeignKey, String, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 
@@ -16,11 +16,19 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 
 """
+админ (айдиб тг_айди)
 юзер (айди, тг_айди)
 категория (айди, имя)
 товар (айди, имя, описание, картинка, цена, категория)
 корзина (айди, айди_юзера, айди_товара)
 """
+class Admin(Base):
+    __tablename__ = 'admins'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tg_id = mapped_column(BigInteger)
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -37,6 +45,7 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(50))
 
     subcategory_rel: Mapped[List['Subcategory']] = relationship(back_populates='category_rel')
+    item_rel: Mapped[List['Item']] = relationship(back_populates='category_rel')
 
 
 class Subcategory(Base):
@@ -55,13 +64,25 @@ class Item(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50))
-    description: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str] = mapped_column(String(3000))
     photo: Mapped[str] = mapped_column(String(200))
     price: Mapped[int] = mapped_column()
+    category: Mapped[int] = mapped_column(ForeignKey('categories.id'))
     subcategory: Mapped[int] = mapped_column(ForeignKey('subcategories.id'))
 
+    category_rel: Mapped['Category'] = relationship(back_populates='item_rel')
     subcategory_rel: Mapped['Subcategory'] = relationship(back_populates='item_rel')
     basket_rel: Mapped[List['Basket']] = relationship(back_populates='item_rel')
+
+
+class Promotion(Base):
+    __tablename__ = 'promotions'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(3000))
+    date_start = mapped_column(Date)
+    date_end = mapped_column(Date)
 
 
 class Basket(Base):
