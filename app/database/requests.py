@@ -1,4 +1,4 @@
-from app.database.models import Admin, User, Category, Subcategory, Item, Basket, Promotion
+from app.database.models import Admin, User, Category, Subcategory, Item, Basket, Order, Promotion
 from app.database.models import async_session
 
 from sqlalchemy import select, update, delete
@@ -19,6 +19,12 @@ async def set_item(data):
         await session.commit()
 
 
+async def set_promotion(data):
+    async with async_session() as session:
+        session.add(Promotion(**data))
+        await session.commit()
+
+
 async def set_basket(tg_id, item_id):
     async with async_session() as session:
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
@@ -26,10 +32,23 @@ async def set_basket(tg_id, item_id):
         await session.commit()
 
 
+async def set_order(data):
+    async with async_session() as session:
+        session.add(Order(**data))
+        await session.commit()
+
+
 async def get_basket(tg_id):
     async with async_session() as session:
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
         basket = await session.scalars(select(Basket).where(Basket.user == user.id))
+        return basket
+    
+
+async def get_item_in_basket(tg_id):
+    async with async_session() as session:
+        user = await session.scalar(select(User).where(User.tg_id == tg_id))
+        basket = await session.scalars(select(Basket.item).where(Basket.user == user.id))
         return basket
 
 

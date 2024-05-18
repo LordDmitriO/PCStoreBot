@@ -2,11 +2,25 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
 
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
 import app.keyboards as kb
-from app.database.requests import get_promotion_by_id, get_item_by_id, set_user, set_basket, get_basket, delete_basket
+from app.database.requests import get_promotion_by_id, get_item_by_id, set_user, set_basket, set_order, get_basket, get_item_in_basket, delete_basket
+from app.functions import o_number
 
 
 router = Router()
+
+
+class Reg_pickup(StatesGroup):
+    name = State()
+    number = State()
+
+class Reg_delivery(StatesGroup):
+    name = State()
+    number = State()
+    address = State()
 
 
 @router.message(CommandStart())
@@ -105,9 +119,99 @@ async def mybasket(callback: CallbackQuery):
     for item_info in basket:
         item = await get_item_by_id(item_info.item)
         await callback.message.answer_photo(photo=item.photo, caption=f'{item.name}\n\n{item.description}\n\nЦена: {item.price} рублей',
-                                            reply_markup=await kb.delete_from_basket(item.id))
+                                            reply_markup=await kb.delete_from_basket_go_to_total(item.id))
         counter += 1
     await callback.message.answer('Ваша корзина пуста.') if counter == 0 else await callback.answer('')
+
+
+@router.callback_query(F.data == 'total')
+async def total(callback: CallbackQuery):
+    my_items = await get_basket(callback.from_user.id)
+    items_data = {}
+    for myitem in my_items:
+        item = await get_item_by_id(myitem.item)
+        if item.name in items_data:
+            items_data[item.name] += int(item.price)
+        else:
+            items_data[item.name] = int(item.price)
+
+    items = []
+    items.append(f'Проверьте ваш заказ:\n')
+    number = 0
+    for name, price in items_data.items():
+        number += 1
+        items.append(f'{number}. {name}: {price} рублей')
+    
+    items.append(f'\nОбщая сумма: {sum(items_data.values())} рублей\n\nВыберите способ доставки:')
+    await callback.message.answer('\n'.join(items), reply_markup=await kb.making_order())
+
+
+@router.callback_query(F.data == 'pickup')
+async def reg_pickup_start(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Reg_pickup.name)
+    await callback.message.answer('Введите свое имя')
+
+
+@router.message(Reg_pickup.name)
+async def reg_pickup_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(Reg_pickup.number)
+    await message.answer('Введите свой номер телефона')
+
+
+@router.message(Reg_pickup.number)
+async def reg_pickup_number(message: Message, state: FSMContext):
+    await state.update_data(number=message.text)
+    await state.update_data(order_number=o_number)
+    await state.update_data(user=message.from_user.id)
+    for item_get in await get_item_in_basket(message.from_user.id):
+        await state.update_data(item=item_get)
+    await state.update_data(status='Обработка')
+    data = await state.get_data()
+    await set_order(data)
+    await message.answer(f'Проверьте свою информацию:\n\nИмя: {data['name']}\nНомер: {data['number']}', reply_markup=await kb.pay())
+    await state.clear()
+
+
+@router.callback_query(F.data == 'delivery')
+async def reg_delivery_start(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Reg_delivery.name)
+    await callback.message.answer('Введите свое имя')
+
+
+@router.message(Reg_delivery.name)
+async def reg_delivery_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(Reg_delivery.number)
+    await message.answer('Введите свой номер телефона')
+
+
+@router.message(Reg_delivery.number)
+async def reg_delivery_number(message: Message, state: FSMContext):
+    await state.update_data(number=message.text)
+    await state.set_state(Reg_delivery.address)
+    await message.answer('Введите свой адрес')
+
+
+@router.message(Reg_delivery.address)
+async def reg_delivery_address(message: Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await state.update_data(order_number=o_number)
+    await state.update_data(user=message.from_user.id)
+    for item_get in await get_item_in_basket(message.from_user.id):
+        await state.update_data(item=item_get)
+    await state.update_data(status='Обработка')
+    data = await state.get_data()
+    await set_order(data)
+    await message.answer(f'Проверьте свою информацию:\n\nИмя: {data['name']}\nНомер: {data['number']}\nАдрес: {data['address']}', reply_markup=await kb.pay())
+    await state.clear()
+
+
+@router.callback_query(F.data == 'pay')
+async def ready_pay(callback: CallbackQuery):
+    await callback.answer('')
+    await callback.message.edit_text(f'Заказ успешно оплачен!\n\nВаш номер заказа - {o_number}\n\nВ ближайшее время с вами свяжется менеджер для уточнения деталей заказа.',
+                                     reply_markup=await kb.ready_order())
         
 
 @router.callback_query(F.data.startswith('delete_'))

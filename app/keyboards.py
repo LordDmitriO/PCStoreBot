@@ -19,10 +19,11 @@ main = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='📖К�
 to_main = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='🏠На главную🏠', callback_data='to_main')]])
 
 
-async def delete_from_basket(order_id):
+async def delete_from_basket_go_to_total(order_id):
     keyboard = InlineKeyboardBuilder()
     keyboard.add(InlineKeyboardButton(text='❌Удалить из корзины❌', callback_data=f'delete_{order_id}'))
-    return keyboard.adjust(2).as_markup()
+    keyboard.add(InlineKeyboardButton(text='📦Перейти к оформлению📦', callback_data='total'))
+    return keyboard.adjust(1).as_markup()
 
 
 async def basket(order_id):
@@ -32,10 +33,31 @@ async def basket(order_id):
     return keyboard.adjust(2).as_markup()
 
 
+async def making_order():
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(InlineKeyboardButton(text='✋Самовывоз✋', callback_data='pickup'))
+    keyboard.add(InlineKeyboardButton(text='🚚Курьер🚚', callback_data='delivery'))
+    keyboard.add(InlineKeyboardButton(text='🏠На главную🏠', callback_data='to_main'))
+    return keyboard.adjust(1).as_markup()
+
+
+async def pay():
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(InlineKeyboardButton(text='💳Оплатить💳', callback_data='pay'))
+    return keyboard.adjust(1).as_markup()
+
+
+async def ready_order():
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(InlineKeyboardButton(text='🏠На главную🏠', callback_data='to_main'))
+    return keyboard.adjust(1).as_markup()
+
+
 async def about():
     keyboard = InlineKeyboardBuilder()
     keyboard.add(InlineKeyboardButton(text='🏠На главную🏠', callback_data='to_main'))
     return keyboard.adjust(1).as_markup()
+
 
 async def contacts():
     keyboard = InlineKeyboardBuilder()

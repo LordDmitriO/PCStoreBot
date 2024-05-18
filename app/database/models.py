@@ -33,10 +33,10 @@ class User(Base):
     __tablename__ = 'users'
 
     id: Mapped[int] =  mapped_column(primary_key=True)
-    tg_id = mapped_column(BigInteger)
+    tg_id = mapped_column(BigInteger, unique=True)
 
     basket_rel: Mapped[List['Basket']] = relationship(back_populates='user_rel')
-
+    order_rel: Mapped[List['Order']] = relationship(back_populates='user_rel')
 
 class Category(Base):
     __tablename__ = 'categories'
@@ -73,7 +73,7 @@ class Item(Base):
     category_rel: Mapped['Category'] = relationship(back_populates='item_rel')
     subcategory_rel: Mapped['Subcategory'] = relationship(back_populates='item_rel')
     basket_rel: Mapped[List['Basket']] = relationship(back_populates='item_rel')
-
+    order_rel: Mapped[List['Order']] = relationship(back_populates='item_rel')
 
 class Promotion(Base):
     __tablename__ = 'promotions'
@@ -81,8 +81,8 @@ class Promotion(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(3000))
-    date_start = mapped_column(Date)
-    date_end = mapped_column(Date)
+    date_start: Mapped[str] = mapped_column(String(20))
+    date_end: Mapped[str] = mapped_column(String(20))
 
 
 class Basket(Base):
@@ -94,6 +94,22 @@ class Basket(Base):
 
     user_rel: Mapped['User'] = relationship(back_populates='basket_rel')
     item_rel: Mapped['Item'] = relationship(back_populates='basket_rel')
+
+
+class Order(Base):
+    __tablename__ = 'orders'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_number: Mapped[int] = mapped_column()
+    user = mapped_column(BigInteger, ForeignKey('users.tg_id'))
+    name: Mapped[str] =  mapped_column(String(100))
+    number: Mapped[str] = mapped_column(String(30))
+    address: Mapped[str] = mapped_column(String(100), nullable=True)
+    item: Mapped[int] = mapped_column(ForeignKey('items.id'))
+    status: Mapped[str] = mapped_column(String(20))
+
+    user_rel: Mapped['User'] = relationship(back_populates='order_rel')
+    item_rel: Mapped['Item'] = relationship(back_populates='order_rel')
 
 
 async def async_main():

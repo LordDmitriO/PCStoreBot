@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 import app.keyboards as kb
-from app.database.requests import get_admins, get_users, set_item
+from app.database.requests import get_admins, get_users, set_item, set_promotion
 
 
 admin = Router()
@@ -25,6 +25,13 @@ class AddItem(StatesGroup):
     price = State()
 
 
+class AddPromotion(StatesGroup):
+    name = State()
+    description = State()
+    date_start = State()
+    date_end = State()
+
+
 class AdminProtect(Filter):
     async def __call__(self, message: Message):
         admins = []
@@ -35,7 +42,7 @@ class AdminProtect(Filter):
 
 @admin.message(AdminProtect(), Command('adminpanel'))
 async def adminpanel(message: Message):
-    await message.answer('Возможные команды:\n/newsletter\n/add_item')
+    await message.answer('Возможные команды:\n/newsletter\n/add_item\n/add_promotion')
 
 
 @admin.message(AdminProtect(), Command('newsletter'))
@@ -114,6 +121,41 @@ async def add_item_price(message: Message, state: FSMContext):
     await message.answer('Товар успешно добавлен.')
     await state.clear()
 
+
+@admin.message(AdminProtect(), Command('add_promotion'))
+async def add_promotion(message: Message, state: FSMContext):
+    await state.set_state(AddPromotion.name)
+    await message.answer('Введите название акции.')
+
+
+@admin.message(AdminProtect(), AddPromotion.name)
+async def add_promotion_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(AddPromotion.description)
+    await message.answer('Введите описание акции.')
+
+
+@admin.message(AdminProtect(), AddPromotion.description)
+async def add_promotion_description(message: Message, state: FSMContext):
+    await state.update_data(description=message.text)
+    await state.set_state(AddPromotion.date_start)
+    await message.answer('Введите дату начала акции.')
+
+
+@admin.message(AdminProtect(), AddPromotion.date_start)
+async def add_promotion_date_start(message: Message, state: FSMContext):
+    await state.update_data(date_start=message.text)
+    await state.set_state(AddPromotion.date_end)
+    await message.answer('Введите дату окончания акции.')
+
+
+@admin.message(AdminProtect(), AddPromotion.date_end)
+async def add_promotion_date_end(message: Message, state: FSMContext):
+    await state.update_data(date_end=message.text)
+    data = await state.get_data()
+    await set_promotion(data)
+    await message.answer('Акция успешно добавлена.')
+    await state.clear()
 
 
 
