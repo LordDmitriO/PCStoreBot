@@ -100,8 +100,40 @@ async def get_item_by_id(item_id: int):
         return item
     
 
-async def delete_basket(tg_id, item_id):
+async def get_orders(tg_id):
+    async with async_session() as session:
+        user = await session.scalar(select(User).where(User.tg_id == tg_id))
+        orders = await session.scalars(select(Order).where(Order.user == user.tg_id))
+        return orders
+
+
+async def get_order_by_id(order_id: int):
+    async with async_session() as session:
+        order = await session.scalar(select(Order).where(Order.id == order_id))
+        return order
+    
+
+async def delete_item_in_basket(tg_id, item_id):
     async with async_session() as session:
         user = await session.scalar(select(User).where(User.tg_id == tg_id))
         await session.execute(delete(Basket).where(Basket.user == user.id, Basket.item == item_id))
+        await session.commit()
+
+
+async def delete_basket(tg_id):
+    async with async_session() as session:
+        user = await session.scalar(select(User).where(User.tg_id == tg_id))
+        await session.execute(delete(Basket).where(Basket.user == user.id))
+        await session.commit()
+
+
+async def delete_item(data):
+    async with async_session() as session:
+        await session.execute(delete(Item).where(Item.name == data['name'], Item.price == data['price'], Item.category == data['category'], Item.subcategory == data['subcategory']))
+        await session.commit()
+
+
+async def delete_promotion(data):
+    async with async_session() as session:
+        await session.execute(delete(Promotion).where(Promotion.id == data['id']))
         await session.commit()

@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 import app.keyboards as kb
-from app.database.requests import get_admins, get_users, set_item, set_promotion
+from app.database.requests import get_admins, get_users, set_item, set_promotion, delete_item, delete_promotion
 
 
 admin = Router()
@@ -32,6 +32,17 @@ class AddPromotion(StatesGroup):
     date_end = State()
 
 
+class DeleteItem(StatesGroup):
+    name = State()
+    price = State()
+    category = State()
+    subcategory = State()
+
+
+class DeletePromotion(StatesGroup):
+    id = State()
+
+
 class AdminProtect(Filter):
     async def __call__(self, message: Message):
         admins = []
@@ -42,7 +53,9 @@ class AdminProtect(Filter):
 
 @admin.message(AdminProtect(), Command('adminpanel'))
 async def adminpanel(message: Message):
-    await message.answer('Возможные команды:\n/newsletter\n/add_item\n/add_promotion')
+    await message.answer('Добро пожаловать в панель администратора.\nВозможные команды:\n\n/newsletter - разослать пользователям сообщение'
+                         '\n\nДобавление:\n/add_item - добавить новый товар\n/add_promotion - добавить новую акцию' 
+                         '\n\nУдаление:\n/delete_item - удалить существующий товар\n/delete_promotion - удалить существующую акцию')
 
 
 @admin.message(AdminProtect(), Command('newsletter'))
@@ -158,4 +171,53 @@ async def add_promotion_date_end(message: Message, state: FSMContext):
     await state.clear()
 
 
+@admin.message(AdminProtect(), Command('delete_item'))
+async def input_delete_item(message: Message, state: FSMContext):
+    await state.set_state(DeleteItem.name)
+    await message.answer('Введите название товара.')
 
+
+@admin.message(AdminProtect(), DeleteItem.name)
+async def delete_item_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(DeleteItem.price)
+    await message.answer('Введите цену товара.')
+
+
+@admin.message(AdminProtect(), DeleteItem.price)
+async def delete_item_price(message: Message, state: FSMContext):
+    await state.update_data(price=int(message.text))
+    await state.set_state(DeleteItem.category)
+    await message.answer('Выберите категорию товара.', reply_markup=await kb.categories())
+
+
+@admin.callback_query(AdminProtect(), DeleteItem.category)
+async def delete_item_category(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(category=int(callback.data.split('_')[1]))
+    await state.set_state(DeleteItem.subcategory)
+    await callback.answer('')
+    await callback.message.answer('Выберите подкатегорию товара.', reply_markup=await kb.subcategories(category_id=int(callback.data.split('_')[1])))
+
+
+@admin.callback_query(AdminProtect(), DeleteItem.subcategory)
+async def delete_item_subcategory(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(subcategory=int(callback.data.split('_')[1]))
+    data = await state.get_data()
+    await delete_item(data)
+    await callback.message.answer('Товар успешно удален.')
+    await state.clear()
+
+
+@admin.message(AdminProtect(), Command('delete_promotion'))
+async def input_delete_promotion(message: Message, state: FSMContext):
+    await state.set_state(DeletePromotion.id)
+    await message.answer('Выберите акцию, которую вы хотите удалить.', reply_markup=await kb.promotions())
+
+
+@admin.callback_query(AdminProtect(), DeletePromotion.id)
+async def delete_promotion_date_end(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(id=int(callback.data.split('_')[1]))
+    data = await state.get_data()
+    await delete_promotion(data)
+    await callback.message.answer('Акция успешно удалена.')
+    await state.clear()

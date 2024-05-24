@@ -63,7 +63,7 @@ class Item(Base):
     __tablename__ = 'items'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(50), unique=True)
     description: Mapped[str] = mapped_column(String(3000))
     photo: Mapped[str] = mapped_column(String(200))
     price: Mapped[int] = mapped_column()
@@ -74,6 +74,7 @@ class Item(Base):
     subcategory_rel: Mapped['Subcategory'] = relationship(back_populates='item_rel')
     basket_rel: Mapped[List['Basket']] = relationship(back_populates='item_rel')
     order_rel: Mapped[List['Order']] = relationship(back_populates='item_rel')
+    item_in_order_rel: Mapped[List['Item_In_Order']] = relationship(back_populates='item_rel')
 
 class Promotion(Base):
     __tablename__ = 'promotions'
@@ -110,6 +111,20 @@ class Order(Base):
 
     user_rel: Mapped['User'] = relationship(back_populates='order_rel')
     item_rel: Mapped['Item'] = relationship(back_populates='order_rel')
+    item_in_order_rel: Mapped['Item_In_Order'] = relationship(back_populates='order_rel')
+
+
+class Item_In_Order(Base):
+    __tablename__ = 'items_in_orders'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'))
+    item_id: Mapped[int] = mapped_column(ForeignKey('items.id'))
+    name: Mapped[str] = mapped_column(String(50), ForeignKey('items.name'))
+    price: Mapped[int] = mapped_column()
+
+    order_rel: Mapped[List['Order']] = relationship(back_populates='item_in_order_rel')
+    item_rel: Mapped['Item'] = relationship(back_populates='item_in_order_rel')
 
 
 async def async_main():

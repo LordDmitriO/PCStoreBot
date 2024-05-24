@@ -6,7 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 import app.keyboards as kb
-from app.database.requests import get_promotion_by_id, get_item_by_id, set_user, set_basket, set_order, get_basket, get_item_in_basket, delete_basket
+from app.database.requests import (get_promotion_by_id, get_item_by_id, set_user, set_basket, set_order, 
+                                   get_basket, get_item_in_basket, get_orders, get_order_by_id, delete_item_in_basket, delete_basket)
 from app.functions import o_number
 
 
@@ -124,23 +125,59 @@ async def mybasket(callback: CallbackQuery):
     await callback.message.answer('Ваша корзина пуста.') if counter == 0 else await callback.answer('')
 
 
+@router.callback_query(F.data == 'myorders')
+async def myorders(callback: CallbackQuery):
+    await callback.answer('')
+    orders = await get_orders(callback.from_user.id)
+    counter = 0
+    items_data = {}
+    pieces_data = {}
+    numbers = []
+    for order_info in orders:
+        order = await get_order_by_id(order_info.id)
+        item = await get_item_by_id(order_info.item)
+        if (item.name in items_data) and (item.name in pieces_data):
+            items_data[item.name] += int(item.price)
+            pieces_data[item.name] += 1
+        else:
+            items_data[item.name] = int(item.price)
+            pieces_data[item.name] = 1
+
+        items = []
+        items.append(f'Номер заказа - {order.order_number}\n\nКонтактная информация:\nИмя: {order.name}\nТелефон: {order.number}\nАдрес: {order.address}\n\nСостав заказа:\n')
+        number = 0
+        for name, price in items_data.items():
+            number += 1             
+            items.append(f'{number}. {name}: {price} рублей - {pieces_data[name]} шт')
+
+        items.append(f'\nОбщая сумма заказа: {sum(items_data.values())} рублей\n\nСтатус заказа - {order.status}')
+        await callback.message.answer('\n'.join(items), reply_markup=kb.to_main)
+        counter += 1
+        items_data = {}
+        pieces_data = {}
+    await callback.message.answer('У вас нет заказов.') if counter == 0 else await callback.answer('')
+
+
 @router.callback_query(F.data == 'total')
 async def total(callback: CallbackQuery):
     my_items = await get_basket(callback.from_user.id)
     items_data = {}
+    pieces_data = {}
     for myitem in my_items:
         item = await get_item_by_id(myitem.item)
-        if item.name in items_data:
+        if (item.name in items_data) and (item.name in pieces_data):
             items_data[item.name] += int(item.price)
+            pieces_data[item.name] += 1
         else:
             items_data[item.name] = int(item.price)
+            pieces_data[item.name] = 1
 
     items = []
     items.append(f'Проверьте ваш заказ:\n')
     number = 0
     for name, price in items_data.items():
         number += 1
-        items.append(f'{number}. {name}: {price} рублей')
+        items.append(f'{number}. {name}: {price} рублей - {pieces_data[name]} шт')
     
     items.append(f'\nОбщая сумма: {sum(items_data.values())} рублей\n\nВыберите способ доставки:')
     await callback.message.answer('\n'.join(items), reply_markup=await kb.making_order())
@@ -200,9 +237,9 @@ async def reg_delivery_address(message: Message, state: FSMContext):
     await state.update_data(user=message.from_user.id)
     for item_get in await get_item_in_basket(message.from_user.id):
         await state.update_data(item=item_get)
-    await state.update_data(status='Обработка')
-    data = await state.get_data()
-    await set_order(data)
+        await state.update_data(status='Обработка')
+        data = await state.get_data()
+        await set_order(data)
     await message.answer(f'Проверьте свою информацию:\n\nИмя: {data['name']}\nНомер: {data['number']}\nАдрес: {data['address']}', reply_markup=await kb.pay())
     await state.clear()
 
@@ -210,12 +247,13 @@ async def reg_delivery_address(message: Message, state: FSMContext):
 @router.callback_query(F.data == 'pay')
 async def ready_pay(callback: CallbackQuery):
     await callback.answer('')
+    await delete_basket(callback.from_user.id)
     await callback.message.edit_text(f'Заказ успешно оплачен!\n\nВаш номер заказа - {o_number}\n\nВ ближайшее время с вами свяжется менеджер для уточнения деталей заказа.',
                                      reply_markup=await kb.ready_order())
-        
 
+        
 @router.callback_query(F.data.startswith('delete_'))
 async def delete_from_basket(callback: CallbackQuery):
-    await delete_basket(callback.from_user.id, int(callback.data.split('_')[1]))
+    await delete_item_in_basket(callback.from_user.id, int(callback.data.split('_')[1]))
     await callback.message.delete()
     await callback.answer('Вы удалили товар из корзины')

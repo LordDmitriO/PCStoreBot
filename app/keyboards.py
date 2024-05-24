@@ -8,7 +8,9 @@ from app.database.requests import get_promotions, get_categories, get_subcategor
 main = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='📖Каталог📖', 
                                                                    callback_data='catalog')],
                                              [InlineKeyboardButton(text='🛒Корзина🛒', 
-                                                                   callback_data='mybasket')],
+                                                                   callback_data='mybasket'),
+                                              InlineKeyboardButton(text='🧳Заказы🧳',
+                                                                   callback_data='myorders')],
                                              [InlineKeyboardButton(text='ℹ️О насℹ️',
                                                                    callback_data='about'),
                                               InlineKeyboardButton(text='☎️Контакты☎️', 
@@ -23,6 +25,7 @@ async def delete_from_basket_go_to_total(order_id):
     keyboard = InlineKeyboardBuilder()
     keyboard.add(InlineKeyboardButton(text='❌Удалить из корзины❌', callback_data=f'delete_{order_id}'))
     keyboard.add(InlineKeyboardButton(text='📦Перейти к оформлению📦', callback_data='total'))
+    keyboard.add(InlineKeyboardButton(text='🏠На главную🏠', callback_data='to_main'))
     return keyboard.adjust(1).as_markup()
 
 
